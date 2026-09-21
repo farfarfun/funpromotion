@@ -14,37 +14,37 @@
 
   // ===================== 默认配置 =====================
   const DEFAULTS = {
-    workspaceIds: "a0a16bc9-e1b1-45f0-b269-812b53f60121",
-    intervalMs: 1500,
-    maxRetries: 3,
-    retryBackoffMs: 5000,
-    sessionPollMs: 20000,
-    panelWidth: 400,
+    workspace_ids: "a0a16bc9-e1b1-45f0-b269-812b53f60121",
+    interval_ms: 1500,
+    max_retries: 3,
+    retry_backoff_ms: 5000,
+    session_poll_ms: 20000,
+    panel_width: 400,
   };
 
   const STORE_KEY = "jr_config_v4";
-  function loadConfig() {
+  function load_config() {
     let saved = {};
-    try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); } catch (_) {}
+    try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); } catch (error) { setTimeout(() => log(`配置读取失败: ${error.message}`, "warn"), 0); }
     return Object.assign({}, DEFAULTS, saved);
   }
-  function saveConfig(cfg) {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch (_) {}
+  function save_config(cfg) {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch (error) { log(`配置保存失败: ${error.message}`, "warn"); }
   }
 
-  let CONFIG = loadConfig();
+  let CONFIG = load_config();
 
   // ---------- 状态 ----------
   const STATE = {
     at: "",
     session: null,
-    deviceId: crypto.randomUUID(),
-    autoRan: false,
+    device_id: crypto.randomUUID(),
+    auto_ran: false,
     running: false,
   };
 
   // ---------- /api/auth/session ----------
-  async function fetchSession() {
+  async function fetch_session() {
     const res = await fetch("/api/auth/session", {
       headers: { accept: "*/*" },
       credentials: "include",
@@ -53,7 +53,7 @@
     return res.json();
   }
 
-  function decodeJwt(at) {
+  function decode_jwt(at) {
     try {
       const p = at.split(".")[1];
       const j = JSON.parse(atob(p.replace(/-/g, "+").replace(/_/g, "/")));
@@ -65,115 +65,115 @@
         plan_type: auth.chatgpt_plan_type || "",
         exp: j.exp || 0,
       };
-    } catch (_) { return {}; }
+    } catch (error) { log(`JWT 解析失败: ${error.message}`, "warn"); return {}; }
   }
 
-  function fmtExp(exp) {
+  function fmt_exp(exp) {
     if (!exp) return "?";
     const min = Math.round((exp * 1000 - Date.now()) / 60000);
     if (min > 60) return `剩余 ${Math.round(min/60)} 小时`;
     return `剩余 ${min} 分钟`;
   }
 
-  async function refreshSession() {
+  async function refresh_session() {
     try {
-      const s = await fetchSession();
+      const s = await fetch_session();
       const at = s.accessToken || "";
       if (at && at !== STATE.at) {
         STATE.at = at;
         STATE.session = s;
-        const info = decodeJwt(at);
+        const info = decode_jwt(at);
         log(`子号 AT 已更新: ${info.email || "?"}`, "ok");
-        updateUserBar(info, "ok");
-        onATReady();
+        update_user_bar(info, "ok");
+        on_at_ready();
       } else if (!at) {
-        updateUserBar(null, "warn");
+        update_user_bar(null, "warn");
       }
     } catch (e) {
       log(`session 获取失败: ${e.message}`, "warn");
-      updateUserBar(null, "err");
+      update_user_bar(null, "err");
     }
   }
 
   // ---------- 发请求 ----------
-  async function sendOne(wsId, route, attempt) {
+  async function send_one(ws_id, route, attempt) {
     attempt = attempt || 0;
-    const url = `/backend-api/accounts/${wsId}/invites/${route}`;
+    const url = `/backend-api/accounts/${ws_id}/invites/${route}`;
     const headers = {
       accept: "*/*",
       authorization: "Bearer " + STATE.at,
       "content-type": "application/json",
-      "oai-device-id": STATE.deviceId,
+      "oai-device-id": STATE.device_id,
       "oai-language": navigator.language || "en-US",
     };
-    log(`→ POST /accounts/${wsId.slice(0,8)}/invites/${route} (第 ${attempt+1} 次)`);
+    log(`→ POST /accounts/${ws_id.slice(0,8)}/invites/${route} (第 ${attempt+1} 次)`);
     try {
       const res = await fetch(url, {
         method: "POST", headers, body: "", mode: "cors", credentials: "include",
       });
       const text = await res.text();
       if (res.ok) {
-        log(`✓ ${wsId.slice(0,8)} HTTP ${res.status}: ${text}`, "ok");
+        log(`✓ ${ws_id.slice(0,8)} HTTP ${res.status}: ${text}`, "ok");
         return true;
       }
-      log(`✗ ${wsId.slice(0,8)} HTTP ${res.status}: ${text.slice(0,180)}`, "warn");
+      log(`✗ ${ws_id.slice(0,8)} HTTP ${res.status}: ${text.slice(0,180)}`, "warn");
       if (res.status === 401 || res.status === 403) {
         log("子号 AT 失效，刷新 session...", "warn");
         STATE.at = "";
-        await refreshSession();
-        if (attempt < CONFIG.maxRetries) {
+        await refresh_session();
+        if (attempt < CONFIG.max_retries) {
           await sleep(2000);
-          return sendOne(wsId, route, attempt + 1);
+          return send_one(ws_id, route, attempt + 1);
         }
         return false;
       }
-      if (attempt < CONFIG.maxRetries) {
-        await sleep(CONFIG.retryBackoffMs * (attempt + 1));
-        return sendOne(wsId, route, attempt + 1);
+      if (attempt < CONFIG.max_retries) {
+        await sleep(CONFIG.retry_backoff_ms * (attempt + 1));
+        return send_one(ws_id, route, attempt + 1);
       }
       return false;
     } catch (e) {
       log(`网络错误: ${e.message}`, "err");
-      if (attempt < CONFIG.maxRetries) {
-        await sleep(CONFIG.retryBackoffMs);
-        return sendOne(wsId, route, attempt + 1);
+      if (attempt < CONFIG.max_retries) {
+        await sleep(CONFIG.retry_backoff_ms);
+        return send_one(ws_id, route, attempt + 1);
       }
       return false;
     }
   }
 
-  function parseWorkspaceIds() {
-    return CONFIG.workspaceIds.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+  function parse_workspace_ids() {
+    return CONFIG.workspace_ids.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
   }
 
-  async function runAll(route) {
+  async function run_all(route) {
     if (STATE.running) { log("正在运行中，请稍候", "warn"); return; }
     if (!STATE.at) {
       log("无可用 AT，刷新 session...", "warn");
-      await refreshSession();
+      await refresh_session();
       if (!STATE.at) { log("仍未取到 AT，请先登录 chatgpt.com", "err"); return; }
     }
-    const ids = parseWorkspaceIds();
+    const ids = parse_workspace_ids();
     if (!ids.length) { log("未配置 workspace ID", "err"); return; }
 
     STATE.running = true;
-    setBtns(false);
+    set_btns(false);
     log(`开始处理 ${ids.length} 个 workspace（${route}）`, "info");
     let ok = 0;
     for (const ws of ids) {
-      const r = await sendOne(ws, route);
+      const r = await send_one(ws, route);
       if (r) ok++;
-      if (ids.length > 1) await sleep(CONFIG.intervalMs);
+      if (ids.length > 1) await sleep(CONFIG.interval_ms);
     }
     log(`完成：成功 ${ok}/${ids.length}`, ok === ids.length ? "ok" : "warn");
     STATE.running = false;
-    setBtns(true);
+    set_btns(true);
   }
 
-  function onATReady() {
-    if (!STATE.autoRan) {
-      STATE.autoRan = true;
-      runAll("request");
+  function on_at_ready() {
+    if (!STATE.auto_ran) {
+      STATE.auto_ran = true;
+      run_all("request");
     }
   }
 
@@ -182,27 +182,27 @@
   // ---------- UI ----------
   let panelBody, userBarEl, reqBtnEl, accBtnEl, wsInputEl, saveBtnEl, dirty = false;
 
-  function setBtns(enabled) {
+  function set_btns(enabled) {
     [reqBtnEl, accBtnEl].forEach(b => {
       if (b) { b.disabled = !enabled; b.style.opacity = enabled ? "1" : "0.5"; }
     });
   }
 
-  function updateUserBar(info, status) {
+  function update_user_bar(info, status) {
     if (!userBarEl) return;
     const c = { ok: "#2f855a", warn: "#b7791f", err: "#c53030" };
     if (info && info.email) {
       userBarEl.innerHTML =
         `<span style="color:${c.ok}">●</span> <b>${info.email}</b> · ${info.plan_type||"?"} · ` +
         `<code style="background:#edf2f7;padding:1px 4px;border-radius:3px">${(info.account_id||"").slice(0,8)}</code> · ` +
-        `<span style="color:#718096">${fmtExp(info.exp)}</span>`;
+        `<span style="color:#718096">${fmt_exp(info.exp)}</span>`;
     } else {
       const msg = status === "err" ? "session 获取失败，请确认已登录" : "未检测到 AT，等待登录...";
       userBarEl.innerHTML = `<span style="color:${c[status]||c.warn}">●</span> ${msg}`;
     }
   }
 
-  function markDirty() {
+  function mark_dirty() {
     dirty = true;
     if (saveBtnEl) {
       saveBtnEl.textContent = "保存 *";
@@ -211,7 +211,7 @@
     }
   }
 
-  function markClean() {
+  function mark_clean() {
     dirty = false;
     if (saveBtnEl) {
       saveBtnEl.textContent = "已保存";
@@ -227,9 +227,9 @@
     }, 1500);
   }
 
-  function buildPanel() {
+  function build_panel() {
     const css = `
-      .jr-panel{position:fixed;top:14px;right:14px;width:${CONFIG.panelWidth}px;
+      .jr-panel{position:fixed;top:14px;right:14px;width:${CONFIG.panel_width}px;
         background:#fff;border:1px solid #e2e8f0;border-radius:14px;
         box-shadow:0 12px 32px rgba(0,0,0,.16);z-index:99999;
         font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1a202c;overflow:hidden}
@@ -306,7 +306,7 @@
     const countEl = p.querySelector("#jr-count");
 
     // 填入已保存值
-    wsInputEl.value = CONFIG.workspaceIds;
+    wsInputEl.value = CONFIG.workspace_ids;
     const updateCount = () => {
       const n = wsInputEl.value.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean).length;
       countEl.textContent = `${n} 个`;
@@ -315,31 +315,30 @@
 
     // 编辑标记 dirty
     wsInputEl.addEventListener("input", () => {
-      markDirty();
+      mark_dirty();
       updateCount();
     });
 
     // 保存
     saveBtnEl.addEventListener("click", () => {
-      CONFIG.workspaceIds = wsInputEl.value;
-      saveConfig(CONFIG);
-      markClean();
+      CONFIG.workspace_ids = wsInputEl.value;
+      save_config(CONFIG);
+      mark_clean();
       log("workspace 已保存", "ok");
     });
 
     // 按钮
-    reqBtnEl.addEventListener("click", () => runAll("request"));
-    accBtnEl.addEventListener("click", () => runAll("accept"));
+    reqBtnEl.addEventListener("click", () => run_all("request"));
+    accBtnEl.addEventListener("click", () => run_all("accept"));
     p.querySelector("#jr-refresh").addEventListener("click", async () => {
       log("手动刷新 session...", "info");
-      await refreshSession();
+      await refresh_session();
     });
   }
 
   function log(msg, level) {
     const styles = { info: "jr-info", ok: "jr-ok", warn: "jr-warn", err: "jr-err" };
     const time = new Date().toLocaleTimeString();
-    console.log("%c[JoinReq]", "color:#3182ce;font-weight:bold", msg);
     if (panelBody) {
       const line = document.createElement("div");
       line.className = `jr-line ${styles[level] || "jr-info"}`;
@@ -351,13 +350,13 @@
 
   // ---------- 启动 ----------
   function boot() {
-    buildPanel();
+    build_panel();
     log("脚本已加载 v4.0", "info");
     log("只需子号 AT + workspace ID", "info");
     log("request = 主动申请 · accept = 接受邀请", "info");
-    refreshSession();
-    setInterval(refreshSession, CONFIG.sessionPollMs);
-    window.addEventListener("focus", () => { if (!STATE.running) refreshSession(); });
+    refresh_session();
+    setInterval(refresh_session, CONFIG.session_poll_ms);
+    window.addEventListener("focus", () => { if (!STATE.running) refresh_session(); });
   }
 
   if (document.readyState === "loading") {
