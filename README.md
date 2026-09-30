@@ -1,5 +1,7 @@
 # funpromotion
-大家一起薅羊毛
+运行在 `chatgpt.com` 上的浏览器 userscript，用于在 ChatGPT workspace 中提交加入/接受邀请请求并导出相关凭证配置。
+
+`k12-v1.js` 适用于手动填写 workspace ID 并发起请求；`k12-v2.js` 提供更新版本的批量处理界面，使用前请确认目标 workspace 和账号权限。
 
 ## 使用
 
