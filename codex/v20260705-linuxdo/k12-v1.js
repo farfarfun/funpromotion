@@ -14,7 +14,7 @@
 
   // ===================== 默认配置 =====================
   const DEFAULTS = {
-    workspace_ids: "a0a16bc9-e1b1-45f0-b269-812b53f60121",
+    workspace_ids: "",
     interval_ms: 1500,
     max_retries: 3,
     retry_backoff_ms: 5000,
@@ -173,7 +173,7 @@
   function on_at_ready() {
     if (!STATE.auto_ran) {
       STATE.auto_ran = true;
-      run_all("request");
+      log("已获取子号 AT，请在确认 workspace ID 后手动点击 Request/Accept", "info");
     }
   }
 
