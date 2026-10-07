@@ -23,7 +23,7 @@
 3. 登录 ChatGPT 并打开 [chatgpt.com](https://chatgpt.com/) 页面，点击该书签即可弹出悬浮面板；再次点击书签会关闭面板。
 4. 面板按钮说明：
    - **获取当前工作区 ID**：把当前所在 workspace 的 ID 填入输入框。
-   - **上车**：对输入框中的每个 workspace ID 发起加入申请（留空则对当前 workspace 操作）。
+   - **上车**：必须填写目标 workspace ID；对输入框中的每个 ID 发起加入申请。
    - **下车**：从填写的 workspace 退出当前账号；对当前 workspace 执行下车或输入框留空直接下车都会二次确认，因为可能导致账号退出登录、使其它 workspace 的 token 失效。
    - **复制 / 下载**：按下拉框选择的格式（Codex auth.json / CPA JSON / sub2api bundle）生成凭证并复制到剪贴板或下载为文件；执行前会弹窗提示凭证为明文、需确认风险。复制仅支持单个 workspace ID，批量请使用下载。
    - **一键上车并导出凭证**：对输入框中的每个 workspace ID 依次执行上车并导出对应凭证，同样会先弹出风险确认提示。
